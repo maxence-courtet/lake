@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relais Tour du Lac — Plan voitures</title>
+<style>
+  :root{
+    --bg:#faf9f5; --surface:#ffffff; --surface2:#f0eee8; --border:#e1ded6;
+    --text:#1f1e1b; --text2:#57544c; --muted:#8a877e;
+    --purple:#7F77DD; --purple-d:#534AB7; --teal:#1D9E75; --teal-d:#0F6E56;
+    --coral:#D85A30; --coral-bg:#FAECE7; --coral-d:#993C1D;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;padding:20px;background:var(--bg);color:var(--text);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:860px;margin:0 auto;}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px;}
+  .sub{font-size:13px;color:var(--muted);margin:0 0 14px;}
+  #mapbox{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  #mapinner{position:relative;min-width:560px;}
+  svg{width:100%;display:block;}
+  @media (max-width:600px){
+    body{padding:10px;}
+    h1{font-size:16px;}
+    .sub{font-size:12px;}
+    .hand{font-size:12px;gap:5px;}
+    .row #legname{font-size:14px;}
+    button{padding:10px 16px;font-size:16px;}
+    .ctrl{flex-wrap:wrap;}
+    .ctrl input[type=range]{flex:1 1 100%;order:4;margin-top:4px;height:28px;}
+    .chip{font-size:11px;padding:3px 7px;}
+    .card{padding:10px 11px;}
+    #swapnote{font-size:12px;}
+    .hint{display:block;}
+  }
+  .hint{display:none;font-size:11px;color:var(--muted);margin:2px 0 6px;}
+  .row{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:8px 0 6px;}
+  .hand{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;font-size:13px;}
+  .pill{background:var(--coral-bg);color:var(--coral-d);padding:2px 10px;border-radius:10px;font-weight:500;}
+  #swapnote{display:none;font-size:13px;color:var(--coral-d);background:var(--coral-bg);
+            border-radius:8px;padding:6px 12px;margin:0 0 10px;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:0 0 12px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
+  .card h3{margin:0 0 8px;font-size:13px;font-weight:600;display:flex;justify-content:space-between;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{font-size:12px;padding:3px 9px;border-radius:10px;background:var(--surface2);
+        border:1px solid var(--border);color:var(--text);}
+  .chip.run{background:var(--coral-bg);color:var(--coral-d);border-color:var(--coral-bg);}
+  .drv{font-size:12px;color:var(--muted);margin-top:8px;min-height:14px;}
+  .ctrl{display:flex;align-items:center;gap:10px;}
+  button{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+         padding:6px 12px;font-size:15px;cursor:pointer;color:var(--text);}
+  button:hover{background:var(--surface2);}
+  input[type=range]{flex:1;accent-color:var(--coral);}
+  .marker{position:absolute;left:0;top:0;transform:translate(-50%,-50%);display:flex;align-items:center;
+          gap:2px;padding:2px 6px;border-radius:12px;font-size:12px;font-weight:600;line-height:1.3;
+          pointer-events:none;white-space:nowrap;}
+  .status{font-size:12px;font-weight:400;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Relais Tour du Lac — qui est dans quelle voiture</h1>
+  <p class="sub">Depart Montreux 12h30 · 24 relais · 2 voitures · 3 echanges (Thonon, Pregny, Etoy)</p>
+  <div id="mapbox"><div id="mapinner"></div></div>
+  <span class="hint">↔ fais glisser la carte pour voir tout le lac</span>
+  <div class="row">
+    <span id="legnum" style="font-size:13px;color:var(--muted);"></span>
+    <span id="legname" style="font-size:16px;font-weight:600;"></span>
+    <span id="legtime" style="font-size:13px;color:var(--text2);"></span>
+  </div>
+  <div class="hand">
+    <span style="color:var(--muted);">avant</span><span id="prevr" style="color:var(--text2);"></span>
+    <span style="color:var(--muted);">→</span>
+    <span class="pill" id="currr"></span>
+    <span style="color:var(--muted);">→</span>
+    <span style="color:var(--muted);">apres</span><span id="nextr" style="color:var(--text2);"></span>
+  </div>
+  <div id="swapnote"></div>
+  <div class="cards">
+    <div class="card" id="cardA">
+      <h3><span style="color:var(--purple-d);">🚗 Voiture A</span><span class="status" id="statusA"></span></h3>
+      <div class="chips" id="chipsA"></div>
+      <div class="drv" id="driverA"></div>
+    </div>
+    <div class="card" id="cardB">
+      <h3><span style="color:var(--teal-d);">🚗 Voiture B</span><span class="status" id="statusB"></span></h3>
+      <div class="chips" id="chipsB"></div>
+    </div>
+  </div>
+  <div class="ctrl">
+    <button id="prev" aria-label="Relais precedent">←</button>
+    <button id="play" aria-label="Lecture">▶</button>
+    <button id="next" aria-label="Relais suivant">→</button>
+    <input type="range" id="scrub" min="1" max="24" step="1" value="1" aria-label="Relais">
+  </div>
+</div>
+<script>
+const NS="http://www.w3.org/2000/svg";
+const px=lo=>20+(lo-6.10)/0.86*660, py=la=>14+(46.55-la)/0.35*386;
+const P=(la,lo)=>[px(lo),py(la)];
+const relays=[[46.435,6.911],[46.398,6.927],[46.381,6.858],[46.392,6.805],[46.407,6.727],[46.401,6.588],[46.371,6.478],[46.353,6.427],[46.335,6.353],[46.305,6.303],[46.268,6.260],[46.246,6.235],[46.234,6.140],[46.283,6.162],[46.316,6.190],[46.395,6.250],[46.420,6.270],[46.458,6.335],[46.487,6.421],[46.508,6.498],[46.516,6.600],[46.508,6.662],[46.500,6.782],[46.462,6.842],[46.435,6.911]].map(p=>P(p[0],p[1]));
+const shore=[[46.397,6.928],[46.383,6.858],[46.392,6.802],[46.408,6.727],[46.404,6.672],[46.402,6.588],[46.395,6.535],[46.373,6.480],[46.357,6.428],[46.348,6.395],[46.340,6.358],[46.370,6.326],[46.362,6.303],[46.352,6.285],[46.330,6.270],[46.302,6.243],[46.278,6.220],[46.256,6.198],[46.225,6.172],[46.208,6.158],[46.213,6.148],[46.258,6.152],[46.285,6.168],[46.315,6.192],[46.333,6.205],[46.380,6.238],[46.398,6.272],[46.455,6.336],[46.470,6.393],[46.478,6.452],[46.505,6.495],[46.509,6.555],[46.505,6.625],[46.508,6.662],[46.500,6.687],[46.488,6.730],[46.478,6.775],[46.458,6.845],[46.430,6.908],[46.412,6.926]].map(p=>P(p[0],p[1]));
+const names=["Depart Montreux","Villeneuve","Le Bouveret","St-Gingolph","Meillerie","Evian-les-Bains","Thonon-les-Bains","Anthy-sur-Leman","Excenevex","Douvaine","Veigy","Meinier","Pregny-Chambesy","Versoix","Coppet","Prangins","Gland","Rolle","Etoy","Morges","Lausanne","Pully","Puidoux","Vevey","Montreux arrivee"];
+const times=["13h22","14h01","14h32","15h29","17h17","17h57","18h32","19h38","20h52","21h35","22h13","23h32","0h18","0h54","2h22","3h03","3h51","4h50","5h47","6h49","7h34","9h17","10h14","10h48"];
+const runners=["Dasha","Rayan","Rayan","Julie","Lola","Aurelien","Maxence","Maxence","Mihaela","Melvin","Melvin","Laura","Dasha","Dasha","Rayan","Julie","Aurelien","Lola","Melvin","Laura","Julie","Maxence","Mihaela","Mihaela"];
+const carA=[["Rayan","Julie","Lola","Aurelien"],["Dasha","Julie","Lola","Aurelien"],["Dasha","Julie","Lola","Aurelien"],["Dasha","Rayan","Lola","Aurelien"],["Dasha","Rayan","Julie","Aurelien"],["Dasha","Rayan","Julie","Lola"],["Rayan","Julie","Lola","Aurelien"],["Rayan","Julie","Lola","Aurelien"],["Rayan","Julie","Lola","Aurelien"],["Rayan","Julie","Lola","Aurelien"],["Rayan","Julie","Lola","Aurelien"],["Rayan","Julie","Lola","Aurelien"],["Rayan","Julie","Lola","Aurelien"],["Rayan","Julie","Lola","Aurelien"],["Dasha","Julie","Lola","Aurelien"],["Dasha","Rayan","Lola","Aurelien"],["Dasha","Rayan","Julie","Lola"],["Dasha","Rayan","Julie","Aurelien"],["Dasha","Rayan","Lola","Aurelien"],["Dasha","Rayan","Lola","Aurelien"],["Dasha","Rayan","Lola","Aurelien"],["Dasha","Rayan","Lola","Aurelien"],["Dasha","Rayan","Lola","Aurelien"],["Dasha","Rayan","Lola","Aurelien"]];
+const carB=[["Maxence","Mihaela","Melvin","Laura"],["Maxence","Mihaela","Melvin","Laura"],["Maxence","Mihaela","Melvin","Laura"],["Maxence","Mihaela","Melvin","Laura"],["Maxence","Mihaela","Melvin","Laura"],["Maxence","Mihaela","Melvin","Laura"],["Dasha","Mihaela","Melvin","Laura"],["Dasha","Mihaela","Melvin","Laura"],["Dasha","Maxence","Melvin","Laura"],["Dasha","Maxence","Mihaela","Laura"],["Dasha","Maxence","Mihaela","Laura"],["Dasha","Maxence","Mihaela","Melvin"],["Maxence","Mihaela","Melvin","Laura"],["Maxence","Mihaela","Melvin","Laura"],["Maxence","Mihaela","Melvin","Laura"],["Maxence","Mihaela","Melvin","Laura"],["Maxence","Mihaela","Melvin","Laura"],["Maxence","Mihaela","Melvin","Laura"],["Julie","Maxence","Mihaela","Laura"],["Julie","Maxence","Mihaela","Melvin"],["Maxence","Mihaela","Melvin","Laura"],["Julie","Mihaela","Melvin","Laura"],["Julie","Maxence","Melvin","Laura"],["Julie","Maxence","Melvin","Laura"]];
+const swaps={6:"ECHANGE a Thonon : Dasha passe en voiture B. La voiture A va dormir.",12:"A Pregny : Dasha descend de la voiture B et enchaine sur le relais 13. La voiture B va dormir.",18:"ECHANGE a Etoy : Julie passe en voiture B. La voiture A dort jusqu'a l'arrivee."};
+const drivers={2:"Julie conduit",3:"Julie conduit",4:"Rayan conduit",15:"Julie conduit",16:"Rayan conduit"};
+const isA=l=>(l>=1&&l<=6)||(l>=13&&l<=18);
+function spline(pts){let d="M"+pts[0][0].toFixed(1)+","+pts[0][1].toFixed(1);const n=pts.length;for(let i=0;i<n;i++){const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],p3=pts[(i+2)%n];d+="C"+(p1[0]+(p2[0]-p0[0])/6).toFixed(1)+","+(p1[1]+(p2[1]-p0[1])/6).toFixed(1)+" "+(p2[0]-(p3[0]-p1[0])/6).toFixed(1)+","+(p2[1]-(p3[1]-p1[1])/6).toFixed(1)+" "+p2[0].toFixed(1)+","+p2[1].toFixed(1);}return d+"Z";}
+const svg=document.createElementNS(NS,"svg");
+svg.setAttribute("viewBox","0 0 700 420");svg.setAttribute("role","img");
+const el=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+svg.appendChild(el("path",{d:spline(shore),fill:"#c7e0f7",stroke:"#378ADD","stroke-width":"1.5"}));
+[["Lac Leman",46.425,6.52,14,"italic"],["Geneve",46.196,6.135,11,"normal"],["Lausanne",46.532,6.615,11,"normal"],["Evian",46.386,6.585,11,"normal"],["Montreux",46.45,6.94,11,"normal"]].forEach(t=>{const e=el("text",{x:px(t[2]),y:py(t[1]),"text-anchor":"middle","font-size":t[3],"font-style":t[4],fill:"#6a86a8"});e.textContent=t[0];svg.appendChild(e);});
+const segs=[];
+for(let i=0;i<24;i++){const s=el("line",{x1:relays[i][0],y1:relays[i][1],x2:relays[i+1][0],y2:relays[i+1][1],stroke:isA(i+1)?"#7F77DD":"#1D9E75","stroke-width":"3","stroke-linecap":"round","stroke-opacity":"0.3"});segs.push(s);svg.appendChild(s);}
+const trail=el("polyline",{points:"",fill:"none",stroke:"#D85A30","stroke-width":"2.5","stroke-linecap":"round","stroke-opacity":"0.9"});svg.appendChild(trail);
+[6,12,18].forEach(l=>svg.appendChild(el("circle",{cx:relays[l][0],cy:relays[l][1],r:"11",fill:"none",stroke:"#D85A30","stroke-width":"1.5","stroke-dasharray":"3 3"})));
+for(let i=0;i<=24;i++){
+  svg.appendChild(el("circle",{cx:relays[i][0],cy:relays[i][1],r:i===0?5:4,fill:i===0?"#999":(isA(i)?"#7F77DD":"#1D9E75"),stroke:"#fff","stroke-width":"1"}));
+  const above=[0,1,4,5,6,15,16,17,18,19,20,21,22,23,24].includes(i);
+  const t=el("text",{x:relays[i][0],y:relays[i][1]+(above?-8:15),"text-anchor":"middle","font-size":"10",fill:"#8a877e"});
+  t.textContent=i===0?"":i;svg.appendChild(t);
+}
+const box=document.getElementById("mapinner");box.appendChild(svg);
+function marker(emoji,bg,fg,label){
+  const d=document.createElement("div");
+  d.className="marker";d.style.background=bg;d.style.color=fg;
+  d.innerHTML='<span style="font-size:14px;">'+emoji+'</span>'+(label?'<span class="lbl">'+label+'</span>':'');
+  box.appendChild(d);return d;
+}
+const mRun=marker("🏃","#D85A30","#FAECE7","");
+const mA=marker("🚗","#AFA9EC","#26215C","A");
+const mB=marker("🚗","#5DCAA5","#04342C","B");
+mA.style.transition="left .8s ease,top .8s ease,opacity .4s";mB.style.transition="left .8s ease,top .8s ease,opacity .4s";
+function place(m,X,Y){const s=box.clientWidth/700;m.style.left=(X*s)+"px";m.style.top=(Y*s)+"px";}
+const chip=(n,run)=>'<span class="chip'+(run?' run':'')+'">'+n+'</span>';
+let leg=1,progress=1,playing=false,raf=null;
+function carSpots(l){
+  const duty=relays[l];
+  let rest;
+  if(l<=6)rest=relays[6];else if(l<=12)rest=relays[12];else if(l<=18)rest=relays[18];else rest=relays[24];
+  return isA(l)?{A:[duty[0]+14,duty[1]-14],B:[rest[0]+14,rest[1]+16]}:{A:[rest[0]+14,rest[1]+16],B:[duty[0]+14,duty[1]-14]};
+}
+function setZ(m,asleep,lbl){m.style.opacity=asleep?"0.55":"1";m.querySelector(".lbl").textContent=asleep?lbl+" 😴":lbl;}
+function render(){
+  const i=leg-1,aOn=isA(leg);
+  document.getElementById("legnum").textContent="Relais "+leg+"/24";
+  document.getElementById("legname").textContent=names[leg];
+  document.getElementById("legtime").textContent="arrivee "+times[i];
+  document.getElementById("prevr").textContent=i>0?runners[i-1]:"(depart)";
+  document.getElementById("currr").textContent=runners[i]+" court";
+  document.getElementById("nextr").textContent=i<23?runners[i+1]:"(arrivee)";
+  const sn=document.getElementById("swapnote");
+  if(progress>=1&&swaps[leg]){sn.style.display="block";sn.textContent=swaps[leg];}else{sn.style.display="none";}
+  document.getElementById("chipsA").innerHTML=carA[i].map(n=>chip(n,false)).join("")+(aOn?chip(runners[i]+" 🏃",true):"");
+  document.getElementById("chipsB").innerHTML=carB[i].map(n=>chip(n,false)).join("")+(!aOn?chip(runners[i]+" 🏃",true):"");
+  document.getElementById("statusA").textContent=aOn?"en course":"dodo 😴";
+  document.getElementById("statusB").textContent=aOn?"dodo 😴":"en course";
+  document.getElementById("cardA").style.opacity=aOn?"1":"0.6";
+  document.getElementById("cardB").style.opacity=aOn?"0.6":"1";
+  document.getElementById("driverA").textContent=aOn?(drivers[leg]||"Rayan ou Julie conduit"):"";
+  const e=progress*progress*(3-2*progress);
+  const x=relays[i][0]+(relays[i+1][0]-relays[i][0])*e,y=relays[i][1]+(relays[i+1][1]-relays[i][1])*e;
+  place(mRun,x,y-2);
+  const outer=document.getElementById("mapbox");
+  if(playing&&outer.scrollWidth>outer.clientWidth+4){
+    const s=box.clientWidth/700;
+    outer.scrollLeft=Math.max(0,Math.min(x*s-outer.clientWidth/2,outer.scrollWidth-outer.clientWidth));
+  }
+  mRun.querySelector("span").style.transform=(relays[i+1][0]<relays[i][0])?"scaleX(-1)":"none";
+  const pts=[];for(let k=0;k<i;k++)pts.push(relays[k].join(","));pts.push(relays[i].join(","));pts.push(x.toFixed(1)+","+y.toFixed(1));
+  trail.setAttribute("points",pts.join(" "));
+  const cs=carSpots(leg);place(mA,cs.A[0],cs.A[1]);place(mB,cs.B[0],cs.B[1]);
+  setZ(mA,!aOn,"A");setZ(mB,aOn,"B");
+  segs.forEach((s,k)=>s.setAttribute("stroke-opacity",k===i?"0.9":(k<i?"0.15":"0.3")));
+  document.getElementById("scrub").value=leg;
+}
+function setLeg(l){leg=Math.min(24,Math.max(1,l));progress=1;render();}
+function step(){
+  progress+=0.014;
+  if(progress>=1){progress=1;render();
+    if(leg<24){setTimeout(()=>{if(playing){leg++;progress=0;raf=requestAnimationFrame(step);}},swaps[leg]?1600:800);}
+    else{playing=false;document.getElementById("play").textContent="▶";}
+    return;}
+  render();raf=requestAnimationFrame(step);
+}
+document.getElementById("play").onclick=()=>{
+  playing=!playing;
+  document.getElementById("play").textContent=playing?"⏸":"▶";
+  if(playing){if(progress>=1){if(leg>=24)leg=1;progress=0;}raf=requestAnimationFrame(step);}
+  else if(raf)cancelAnimationFrame(raf);
+};
+const stop=()=>{playing=false;document.getElementById("play").textContent="▶";};
+document.getElementById("prev").onclick=()=>{stop();setLeg(leg-1);};
+document.getElementById("next").onclick=()=>{stop();setLeg(leg+1);};
+document.getElementById("scrub").oninput=e=>{stop();setLeg(+e.target.value);};
+window.addEventListener("resize",render);
+render();
+</script>
+</body>
+</html>
